@@ -264,7 +264,7 @@ def Res_Centerloss():
 	# loss and optimizer
 	criterion_xent = nn.CrossEntropyLoss()
 	# feat_dim 要根据自己输出的特征维度去判断
-	criterion_cent = CenterLoss(num_classes = num_classes, feat_dim = 2048, use_gpu=use_gpu)
+	criterion_cent = CenterLoss(num_classes = num_classes, feat_dim = 512, use_gpu=use_gpu)
 	optimizer_model = torch.optim.SGD(model.parameters(), lr = lr_model, weight_decay=5e-04, momentum=0.9)
 	optimizer_centloss = torch.optim.SGD(criterion_cent.parameters(), lr = lr_cent)
 	scheduler = lr_scheduler.StepLR(optimizer_model, step_size = step_size, gamma = gamma)

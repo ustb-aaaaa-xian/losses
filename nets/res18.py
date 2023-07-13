@@ -188,7 +188,8 @@ class ResNet(nn.Module):
 		self.layer3 = self._make_layer(block, 256, layers[2], stride=2, dilate=replace_stride_with_dilation[1])
 		self.layer4 = self._make_layer(block, 512, layers[3], stride=2, dilate=replace_stride_with_dilation[2])
 		self.avgpool = nn.AdaptiveAvgPool2d((1, 1))
-		self.fc = nn.Linear(512 * block.expansion, num_classes)
+		self.fc = nn.Linear(512 * block.expansion, 512)
+		self.fc2 = nn.Linear(512,num_classes)
 
 		for m in self.modules():
 			if isinstance(m, nn.Conv2d):
@@ -265,7 +266,8 @@ class ResNet(nn.Module):
 		features = torch.flatten(x, 1)
 		# print(f"features.shape:{features.shape}")
 		# 写成返回特征以及输出结果的形式
-		out = self.fc(features)
+		features = self.fc(features)
+		out = self.fc2(features)
 
 		return features,out
 
@@ -273,10 +275,10 @@ class ResNet(nn.Module):
 		return self._forward_impl(x)
 
 
-def resnet18_manual(num_classes=1000):
+def resnet18_manual(num_classes = 1000):
 	model = ResNet(Bottleneck, [2, 2, 2, 2], num_classes=num_classes)
-	if num_classes != 1000:
-		model.fc = nn.Linear(512 * model.block.expansion, num_classes)
+	# if num_classes != 1000:
+	# 	model.fc = nn.Linear(512 * model.block.expansion, num_classes)
 
 	return model
 
