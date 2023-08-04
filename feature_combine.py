@@ -5,6 +5,7 @@ from typing import  Any, Callable, List, Optional, Type, Union
 from torch import Tensor
 
 # 针对的是两个Tensor的堆叠的所以Tensor之间的欧氏距离
+N = 5
 def eu_distance(a, b):
     sq_a = a ** 2
     sum_sq_a = torch.sum(sq_a, dim=1).unsqueeze(1)  # m->[m, 1]

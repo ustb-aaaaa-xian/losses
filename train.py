@@ -1,3 +1,5 @@
+import os
+
 import torch
 import torch.nn as nn
 from torch import optim
@@ -85,12 +87,17 @@ def Res_ce():
 	test_set = Dataprocess(data_root = "./data/MSTAR-10",mode = "test",transform = tf)
 	test_loader = DataLoader(test_set,batch_size = batch_size,shuffle = True)
 	print(len(test_set))
-	n_epoch = 100
+	n_epoch = 50
 	lr = 0.0003
 	op = optim.Adam(params=model.parameters(), lr=lr, weight_decay=0.001)
 	lr_scheduler = optim.lr_scheduler.StepLR(op,step_size = 1,gamma = 0.94) # 调整学习率
 	criterion = torch.nn.CrossEntropyLoss()
 	criterion = criterion.to(device)
+
+	save_dir = "logs"
+	if not os.path.exists(save_dir):
+		os.makedirs(save_dir)
+	acc_max = .0
 	for ep in range(n_epoch):
 		pbar = tqdm(train_loader)
 		model.train()
@@ -124,7 +131,12 @@ def Res_ce():
 				pbar_test.set_description(f"epoch:{ep},correct:{correct}")
 				j += 1
 		print(f"ep:{ep},acc:{correct_all/all : .3f},correct:{correct_all},all:{all}")
+		acc = (correct_all/all)
 		lr_scheduler.step()
+		if acc >acc_max:
+			acc_max = acc
+			torch.save(model.state_dict(),"logs/mstar_ce_acc_max.pt")
+		print(f"max_acc:{acc_max}")
 
 def Res_LDLF():
 	# model
@@ -132,7 +144,7 @@ def Res_LDLF():
 	# device = "cpu"
 	model = resnet18_manual(num_classes=10)
 	# 有关预训练权重的使用，先存疑
-	batch_size = 4
+	batch_size = 16
 	model.to(device)
 	#data
 
@@ -151,7 +163,7 @@ def Res_LDLF():
 	test_set = Dataprocess(data_root = "./data/MSTAR-10",mode = "test",transform = tf)
 	test_loader = DataLoader(test_set,batch_size = batch_size,shuffle = True)
 	print(len(test_set))
-	n_epoch = 100
+	n_epoch = 50
 	lr = 0.0003
 	op = optim.Adam(params=model.parameters(), lr=lr, weight_decay=0.001)
 	lr_scheduler = optim.lr_scheduler.StepLR(op,step_size = 1,gamma = 0.94) # 调整学习率
@@ -160,6 +172,7 @@ def Res_LDLF():
 	margin = .5
 	lambda_ = 1. #lambda 是python关键字
 	# 对比损失的第二部分的书写 就是欧式距离等，不需要nn里面集成的损失函数
+	acc_min = .0
 	for ep in range(n_epoch):
 		pbar = tqdm(train_loader)
 		model.train()
@@ -228,6 +241,10 @@ def Res_LDLF():
 				j += 1
 		print(f"ep:{ep},acc:{correct_all/all : .3f},correct:{correct_all},all:{all}")
 		lr_scheduler.step()
+		acc = (correct_all/all)
+		if acc >acc_min:
+			acc_min = acc
+			torch.save(model.state_dict(),"logs/mstar_ldlf_acc_max.pt")
 
 def Res_Centerloss():
 
@@ -255,7 +272,7 @@ def Res_Centerloss():
 	test_set = Dataprocess(data_root = "./data/MSTAR-10",mode = "test",transform = tf)
 	test_loader = DataLoader(test_set,batch_size = batch_size,shuffle = True)
 	print(len(test_set))
-	n_epoch = 100
+	n_epoch = 50
 	lr_model = 0.0003
 	lr_cent = 0.5
 	weight_cent = 1.
@@ -273,7 +290,10 @@ def Res_Centerloss():
 	xent_losses = AverageMeter()
 	cent_losses = AverageMeter()
 	losses = AverageMeter()
-
+	save_dir = "logs"
+	acc_min = .0
+	if not os.path.exists(save_dir):
+		os.makedirs(save_dir)
 	for ep in range(n_epoch):
 		pbar = tqdm(train_loader)
 		model.train()
@@ -329,8 +349,17 @@ def Res_Centerloss():
 			print(f"ep:{ep},acc:{correct / total : .3f},correct:{correct},total:{total}")
 			acc = correct * 100. / total
 			err = 100. - acc
-			# return acc, err
+			# return acc, er
+			if acc >acc_min:
+				acc_min = acc
+				torch.save(model.state_dict(),"logs/mstar_ce_acc_max.pt")
 
 
 if __name__ == "__main__":
-	Res_Centerloss()
+	Res_ce()
+	print(f"res_ce done!")
+	#
+	# Res_Centerloss()
+	# print(f"res_centerloss done!")
+	# Res_LDLF()
+	# print(f"res_ldlf done!")
