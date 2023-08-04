@@ -1,3 +1,4 @@
+import argparse
 import os
 
 import torch
@@ -10,7 +11,7 @@ from torch.utils.data import DataLoader
 import torchvision.transforms as transforms
 import torchvision
 from tqdm import tqdm
-from utils.data import Dataprocess
+from utils.data import Dataprocess,Dataprocess_n
 from utils.utils import *
 from nets.res18 import resnet18_manual
 from feature_combine import eu_distance,eu_distance_2
@@ -62,13 +63,15 @@ class CenterLoss(nn.Module):
 
 def Res_ce():
 	# model
+	arg = create_parser()
 	device = "cuda:0"
+	num_each_class = arg.num_each_class
 	model = resnet18() # 使用在线权重的话服务器登不出去
 	# model = mobilenet.mobilenet_v2(weights = MobileNet_V2_Weights.IMAGENET1K_V1)
 	model.fc = nn.Sequential(
 		nn.Linear(512,10),  # 最后的分类个数根据自己数据来 ;resnet18最后是512,mobilenetv2最后是1280
 	)
-	batch_size = 16
+	batch_size = arg.batch_size
 	model.to(device)
 	#data
 
@@ -81,10 +84,12 @@ def Res_ce():
 		]
 	)
 
-	train_set = Dataprocess(data_root = "./data/MSTAR-10",mode = "train",transform = tf,data_size=0.1)
+	# train_set = Dataprocess(data_root = "./data/MSTAR-10",mode = "train",transform = tf,data_size=0.1)
+	train_set = Dataprocess_n(data_root = "./data/MSTAR-10",mode = "train",transform = tf,num_each_class = num_each_class)
 	train_loader = DataLoader(train_set,batch_size = batch_size,shuffle = True)
 	print(len(train_set))
-	test_set = Dataprocess(data_root = "./data/MSTAR-10",mode = "test",transform = tf)
+	# test_set = Dataprocess(data_root = "./data/MSTAR-10",mode = "test",transform = tf)
+	test_set = Dataprocess_n(data_root = "./data/MSTAR-10",mode = "test",transform=tf,num_each_class = 100)
 	test_loader = DataLoader(test_set,batch_size = batch_size,shuffle = True)
 	print(len(test_set))
 	n_epoch = 50
@@ -99,6 +104,12 @@ def Res_ce():
 		os.makedirs(save_dir)
 	acc_max = .0
 	for ep in range(n_epoch):
+		if ep % 10 == 0:
+			test_set = Dataprocess_n(data_root="./data/MSTAR-10", mode="test", transform=tf, num_each_class = 0)
+			test_loader = DataLoader(test_set, batch_size=batch_size, shuffle=True)
+		else:
+			test_set = Dataprocess_n(data_root="./data/MSTAR-10", mode="test", transform=tf, num_each_class=10)
+			test_loader = DataLoader(test_set, batch_size=batch_size, shuffle=True)
 		pbar = tqdm(train_loader)
 		model.train()
 		j = 0
@@ -135,16 +146,17 @@ def Res_ce():
 		lr_scheduler.step()
 		if acc >acc_max:
 			acc_max = acc
-			torch.save(model.state_dict(),"logs/mstar_ce_acc_max.pt")
+			torch.save(model.state_dict(),f"logs/mstar_ce_acc_max{num_each_class}.pt")
 		print(f"max_acc:{acc_max}")
 
 def Res_LDLF():
 	# model
 	device = "cuda:0"
-	# device = "cpu"
+	arg = create_parser()
+	num_each_class = arg.num_each_class
 	model = resnet18_manual(num_classes=10)
 	# 有关预训练权重的使用，先存疑
-	batch_size = 16
+	batch_size = arg.batch_size
 	model.to(device)
 	#data
 
@@ -157,10 +169,12 @@ def Res_LDLF():
 		]
 	)
 
-	train_set = Dataprocess(data_root = "./data/MSTAR-10",mode = "train",transform = tf,data_size=0.1)
+	# train_set = Dataprocess(data_root = "./data/MSTAR-10",mode = "train",transform = tf,data_size=0.1)
+	train_set = Dataprocess_n(data_root = "./data/MSTAR-10",mode = "train",transform = tf,num_each_class = num_each_class)
 	train_loader = DataLoader(train_set,batch_size = batch_size,shuffle = True)
 	print(len(train_set))
-	test_set = Dataprocess(data_root = "./data/MSTAR-10",mode = "test",transform = tf)
+	# test_set = Dataprocess(data_root = "./data/MSTAR-10",mode = "test",transform = tf)
+	test_set = Dataprocess_n(data_root="./data/MSTAR-10", mode="test", transform=tf, num_each_class=100)
 	test_loader = DataLoader(test_set,batch_size = batch_size,shuffle = True)
 	print(len(test_set))
 	n_epoch = 50
@@ -174,6 +188,12 @@ def Res_LDLF():
 	# 对比损失的第二部分的书写 就是欧式距离等，不需要nn里面集成的损失函数
 	acc_min = .0
 	for ep in range(n_epoch):
+		if ep % 10 == 0:
+			test_set = Dataprocess_n(data_root="./data/MSTAR-10", mode="test", transform=tf, num_each_class = 0)
+			test_loader = DataLoader(test_set, batch_size=batch_size, shuffle=True)
+		else:
+			test_set = Dataprocess_n(data_root="./data/MSTAR-10", mode="test", transform=tf, num_each_class = 10)
+			test_loader = DataLoader(test_set, batch_size=batch_size, shuffle=True)
 		pbar = tqdm(train_loader)
 		model.train()
 		j = 0
@@ -244,16 +264,17 @@ def Res_LDLF():
 		acc = (correct_all/all)
 		if acc >acc_min:
 			acc_min = acc
-			torch.save(model.state_dict(),"logs/mstar_ldlf_acc_max.pt")
+			torch.save(model.state_dict(),f"logs/mstar_ldlf_acc_max{num_each_class}.pt")
 
 def Res_Centerloss():
 
 	# model
 	device = "cuda:0"
-	# device = "cpu"
+	arg = create_parser()
+	num_each_class = arg.num_each_class
 	num_classes = 10
 	model = resnet18_manual(num_classes = num_classes)
-	batch_size = 4
+	batch_size = arg.batch_size
 	model.to(device)
 	use_gpu = True
 	#data
@@ -266,10 +287,12 @@ def Res_Centerloss():
 		]
 	)
 
-	train_set = Dataprocess(data_root = "./data/MSTAR-10",mode = "train",transform = tf,data_size=0.1)
+	# train_set = Dataprocess(data_root = "./data/MSTAR-10",mode = "train",transform = tf,data_size=0.1)
+	train_set = Dataprocess_n(data_root = "./data/MSTAR-10",mode = "train",transform = tf,num_each_class = num_each_class)
 	train_loader = DataLoader(train_set,batch_size = batch_size,shuffle = True)
 	print(len(train_set))
-	test_set = Dataprocess(data_root = "./data/MSTAR-10",mode = "test",transform = tf)
+	# test_set = Dataprocess(data_root = "./data/MSTAR-10",mode = "test",transform = tf)
+	test_set = Dataprocess_n(data_root = "./data/MSTAR-10",mode = "test",transform=tf)
 	test_loader = DataLoader(test_set,batch_size = batch_size,shuffle = True)
 	print(len(test_set))
 	n_epoch = 50
@@ -295,6 +318,12 @@ def Res_Centerloss():
 	if not os.path.exists(save_dir):
 		os.makedirs(save_dir)
 	for ep in range(n_epoch):
+		if ep % 10 == 0:
+			test_set = Dataprocess_n(data_root="./data/MSTAR-10", mode="test", transform=tf)
+			test_loader = DataLoader(test_set, batch_size=batch_size, shuffle=True)
+		else:
+			test_set = Dataprocess_n(data_root="./data/MSTAR-10", mode="test", transform=tf, num_each_class=10)
+			test_loader = DataLoader(test_set, batch_size=batch_size, shuffle=True)
 		pbar = tqdm(train_loader)
 		model.train()
 		j = 0
@@ -352,14 +381,22 @@ def Res_Centerloss():
 			# return acc, er
 			if acc >acc_min:
 				acc_min = acc
-				torch.save(model.state_dict(),"logs/mstar_ce_acc_max.pt")
+				torch.save(model.state_dict(),f"logs/mstar_center_acc_max{num_each_class}.pt")
 
+def create_parser():
+	parser = argparse.ArgumentParser()
 
+	parser.add_argument("--n_epoch", type=int, default=50)
+	parser.add_argument("--num_each_class",type = int ,default = 10)
+	parser.add_argument("--batch_size","--b",type = int ,default = 16)
+
+	arg = parser.parse_args()
+	return arg
 if __name__ == "__main__":
 	Res_ce()
 	print(f"res_ce done!")
 	#
-	# Res_Centerloss()
-	# print(f"res_centerloss done!")
-	# Res_LDLF()
-	# print(f"res_ldlf done!")
+	Res_Centerloss()
+	print(f"res_centerloss done!")
+	Res_LDLF()
+	print(f"res_ldlf done!")
