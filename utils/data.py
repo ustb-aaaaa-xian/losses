@@ -48,7 +48,7 @@ class Dataprocess(Dataset):
 		return data,target
 
 class Dataprocess_n(Dataset):
-	def __init__(self,data_root ="",mode = "train",transform = None,num_each_class : int = None):
+	def __init__(self,data_root ="",mode = "train",transform = None,num_each_class : int = 0):
 		super().__init__()
 		data_dir = ""
 		if mode == "train" or mode == "val":
@@ -78,7 +78,8 @@ class Dataprocess_n(Dataset):
 				datas.append(file)
 			# 取数据
 			random.seed(1000)
-			datas = random.sample(datas,num_each_class)
+			if num_each_class!=0:
+				datas = random.sample(datas,num_each_class)
 			for data in datas:
 				data_list.append((target,data))
 		self.data_list = data_list
